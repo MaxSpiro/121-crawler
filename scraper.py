@@ -1,13 +1,14 @@
 import re
-from urllib.parse import urlparse
-
+from urllib.parse import urlparse, urldefrag
+from bs4 import BeautifulSoup
+from stopwords import stopwords
 
 def scraper(url, resp):
     links = extract_next_links(url, resp)
     return [link for link in links if is_valid(link)]
 
 
-def extract_next_links(url, resp):
+def extract_next_links(url: str, resp):
     # Implementation required.
     # url: the URL that was used to get the page
     # resp.url: the actual url of the page
@@ -16,9 +17,25 @@ def extract_next_links(url, resp):
     # resp.raw_response: this is where the page actually is. More specifically, the raw_response has two parts:
     #         resp.raw_response.url: the url, again
     #         resp.raw_response.content: the content of the page!
-    # Return a list with the hyperlinks (as strings) scrapped from resp.raw_response.content
+    # Return a list with the hyperlinks (as strings) scraped from resp.raw_response.content
+    if resp.status != 200:
+        print(resp.error)
+        return list()
     
-    return list()
+    links = list()
+    soup = BeautifulSoup(resp.raw_response.content, 'html.parser')
+    for link in soup.find_all('a'):
+        if link.get('href'):
+            links.append(urldefrag(link.get('href')).url)
+
+
+    # Process HTML
+    text = soup.get_text()
+    filename = url.replace('://','_').replace('/','_').replace('.','_')
+    with open("webpages/"+filename, 'w') as f:
+        f.write(text)
+        
+    return links
 
 
 def is_valid(url):
@@ -27,9 +44,10 @@ def is_valid(url):
     # There are already some conditions that return False.
     try:
         parsed = urlparse(url)
-        print(parsed.hostname, parsed.path)
         if parsed.scheme not in set(["http", "https"]):
             return False
+        if '.' in parsed.path: # revisit
+            return False 
         if not re.match(
             r".*\.(ics|cs|informatics|stat)\.uci\.edu|today\.uci\.edu",
             parsed.hostname.lower(),
@@ -45,4 +63,5 @@ def is_valid(url):
 
     except TypeError:
         print("TypeError for ", parsed)
-        raise
+        return False
+    
