@@ -1,7 +1,7 @@
 import re
 from urllib.parse import urlparse, urldefrag
 from bs4 import BeautifulSoup
-from stopwords import stopwords
+from utils import get_urlhash
 
 def scraper(url, resp):
     links = extract_next_links(url, resp)
@@ -31,9 +31,10 @@ def extract_next_links(url: str, resp):
 
     # Process HTML
     text = soup.get_text()
-    filename = url.replace('://','_').replace('/','_').replace('.','_')
+    clean_text = re.sub(r'\n+','\n',text)
+    filename = get_urlhash(url)
     with open("webpages/"+filename, 'w') as f:
-        f.write(text)
+        f.write(url+"\n"+clean_text)
         
     return links
 
@@ -56,8 +57,6 @@ def is_valid(url):
             + r"|thmx|mso|arff|rtf|jar|csv"
             + r"|rm|smil|wmv|swf|wma|zip|rar|gz)$", parsed.path.lower()):
             return False
-        if '.' in parsed.path: # revisit
-            return False 
         if not re.match(
             r".*\.(ics|cs|informatics|stat)\.uci\.edu|today\.uci\.edu",
             parsed.hostname.lower(),
