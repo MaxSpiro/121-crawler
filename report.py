@@ -1,24 +1,23 @@
 import os
+from pathlib import Path
+from urllib.parse import urlparse
+import re
 
-def count_files_in_directory(directory_path):
-    """Counts the number of files in a directory, excluding subdirectories.
-    
-    Args:
-        directory_path: The path to the directory.
-    
-    Returns:
-        The number of files in the directory, or None if the directory does not exist.
-    """
-    if not os.path.isdir(directory_path):
-        return None
-    
-    file_count = 0
-    for item in os.listdir(directory_path):
-        item_path = os.path.join(directory_path, item)
-        if os.path.isfile(item_path):
-            file_count += 1
-    
-    return file_count
+# 1) Number of unique pages
+# 2) Longest page (# of words)
+# 3) 50 most common words (ignoring stop words)
+# 4) Number of subdomains in uci.edu, listed alphabetically and with number of pages in the subdomain
 
+subdomains = dict()
+def log_subdomain(url):
+    parsed = urlparse(url)
+    if parsed.hostname not in subdomains:
+        subdomains[parsed.hostname] = 1
+    else:
+        subdomains[parsed.hostname] += 1
 
-print(count_files_in_directory('./webpages'))
+        
+for file in Path('./webpages').iterdir():  
+    with open(file) as f:
+        url = f.readline().rstrip('\n')
+        print(url)

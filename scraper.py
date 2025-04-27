@@ -1,7 +1,10 @@
 import re
 from urllib.parse import urlparse, urldefrag
 from bs4 import BeautifulSoup
-from utils import get_urlhash
+from utils import get_urlhash, get_logger
+
+error_logger = get_logger('errors')
+low_info_logger = get_logger('low_info')
 
 def scraper(url, resp):
     links = extract_next_links(url, resp)
@@ -19,7 +22,9 @@ def extract_next_links(url: str, resp):
     #         resp.raw_response.content: the content of the page!
     # Return a list with the hyperlinks (as strings) scraped from resp.raw_response.content
     if resp.status != 200:
-        print(resp.error)
+        error_logger.error('URL: '+url+' returned status code ' + str(resp.status))
+        if resp.error:
+            error_logger.error('Error: '+resp.error)
         return list()
     
     links = list()
@@ -32,6 +37,10 @@ def extract_next_links(url: str, resp):
     # Process HTML
     text = soup.get_text()
     clean_text = re.sub(r'\n+','\n',text)
+    if len(clean_text) < 5:
+        low_info_logger.info('URL: '+url+' returned low information')
+        if len(clean_text) > 0:
+            low_info_logger.info('Page contents: '+clean_text)
     filename = get_urlhash(url)
     with open("webpages/"+filename, 'w') as f:
         f.write(url+"\n"+clean_text)
@@ -44,6 +53,7 @@ def is_valid(url):
     # If you decide to crawl it, return True; otherwise return False.
     # There are already some conditions that return False.
     try:
+        url = url.lower()
         parsed = urlparse(url)
         if parsed.scheme not in set(["http", "https"]):
             return False
@@ -55,22 +65,40 @@ def is_valid(url):
             + r"|data|dat|exe|bz2|tar|msi|bin|7z|psd|dmg|iso"
             + r"|epub|dll|cnf|tgz|sha1"
             + r"|thmx|mso|arff|rtf|jar|csv"
-            + r"|rm|smil|wmv|swf|wma|zip|rar|gz)$", parsed.path.lower()):
+            + r"|rm|smil|wmv|swf|wma|zip|rar|gz|sql)$", parsed.path):
+            return False
+        # pdf without an extension
+        if re.match(r".*/files/pdf/.*", parsed.path):
+            return False
+        # calendar link, download, login, sharing to twitter or facebook
+        if re.match(r".*(ical=|tribe_events|action=|share=(twitter|facebook)).*", parsed.query):
+            return False
+        # calendar events (gray area: wics.*event/.*, some have text, most are useless)
+        if re.match(r".*/events/(category|.*(day|20\d{2}-\d{2})).*", parsed.path):
+            return False
+        if re.match(r".*wics\.ics\.uci\.edu/events?/.*", url):
+            return False
+        # redirects
+        if re.match(r".*ics\.uci\.edu/~.*", url):
+            return False
+        # file uploads and login form
+        if re.match(r".*/wp-(content|login).*", parsed.path):
             return False
         if not re.match(
             r".*\.(ics|cs|informatics|stat)\.uci\.edu|today\.uci\.edu",
-            parsed.hostname.lower(),
+            parsed.hostname,
         ):
             return False
-        if parsed.hostname.lower()[
+        
+        if parsed.hostname[
             :5
-        ] == "today" and not parsed.path.lower().startswith(
+        ] == "today" and not parsed.path.startswith(
             "/department/information_computer_sciences"
         ):
             return False
         return True
 
-    except TypeError:
-        print("TypeError for ", parsed)
+    except Exception as e:
+        print(repr(e))
         return False
     
