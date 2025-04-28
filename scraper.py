@@ -4,7 +4,7 @@ from bs4 import BeautifulSoup
 from utils import get_urlhash, get_logger
 
 error_logger = get_logger('errors')
-low_info_logger = get_logger('low_info')
+info_logger = get_logger('low_info')
 
 def scraper(url, resp):
     links = extract_next_links(url, resp)
@@ -26,6 +26,9 @@ def extract_next_links(url: str, resp):
         if resp.error:
             error_logger.error('Error: '+resp.error)
         return list()
+    if 'text/html' not in resp.headers['Content-Type']:
+        info_logger.log('URL '+url+' is not HTML')
+        return list()
     
     links = list()
     soup = BeautifulSoup(resp.raw_response.content, 'html.parser')
@@ -38,9 +41,9 @@ def extract_next_links(url: str, resp):
     text = soup.get_text()
     clean_text = re.sub(r'\n+','\n',text)
     if len(clean_text) < 5:
-        low_info_logger.info('URL: '+url+' returned low information')
+        info_logger.info('URL: '+url+' returned low information')
         if len(clean_text) > 0:
-            low_info_logger.info('Page contents: '+clean_text)
+            info_logger.info('Page contents: '+clean_text)
     filename = get_urlhash(url)
     with open("webpages/"+filename, 'w') as f:
         f.write(url+"\n"+clean_text)
@@ -58,7 +61,7 @@ def is_valid(url):
         if parsed.scheme not in set(["http", "https"]):
             return False
         if re.match(
-            r".*\.(css|js|bmp|gif|jpe?g|ico"
+            r".*\.(src|rpm|css|js|bmp|gif|jpe?g|ico"
             + r"|png|tiff?|mid|mp2|mp3|mp4"
             + r"|wav|avi|mov|mpeg|ram|m4v|mkv|ogg|ogv|pdf"
             + r"|ps|eps|tex|ppt|pptx|doc|docx|xls|xlsx|names"
@@ -85,14 +88,12 @@ def is_valid(url):
         if re.match(r".*/wp-(content|login).*", parsed.path):
             return False
         if not re.match(
-            r".*\.(ics|cs|informatics|stat)\.uci\.edu|today\.uci\.edu",
+            r".*(ics|cs|informatics|stat|today)\.uci\.edu",
             parsed.hostname,
         ):
             return False
-        
-        if parsed.hostname[
-            :5
-        ] == "today" and not parsed.path.startswith(
+
+        if "today.uci.edu" in parsed.hostname and not parsed.path.startswith(
             "/department/information_computer_sciences"
         ):
             return False
@@ -101,4 +102,3 @@ def is_valid(url):
     except Exception as e:
         print(repr(e))
         return False
-    
