@@ -4,6 +4,7 @@ class Response(object):
     def __init__(self, resp_dict):
         self.url = resp_dict["url"]
         self.status = resp_dict["status"]
+        self.headers = resp_dict["headers"] if "headers" in resp_dict else None
         self.error = resp_dict["error"] if "error" in resp_dict else None
         try:
             self.raw_response = (

@@ -48,6 +48,8 @@ def longestPage():
         with open(file) as f:
             url = f.readline().rstrip('\n')
             tokens = f.readline().rstrip('\n').split(' ')
+            if len(tokens) < 20:
+                print(url, ' '.join(tokens))
             if len(tokens) > max_words:
                 max_words = len(tokens)
                 longest_page = url

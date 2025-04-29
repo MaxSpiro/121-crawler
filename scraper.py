@@ -26,7 +26,9 @@ def extract_next_links(url: str, resp):
         if resp.error:
             error_logger.error('Error: '+resp.error)
         return list()
-    if 'text/html' not in resp.headers['Content-Type']:
+    
+    # Only accept HTML
+    if resp.headers and 'text/html' not in resp.headers['Content-Type']:
         info_logger.log('URL '+url+' is not HTML')
         return list()
     
@@ -70,33 +72,26 @@ def is_valid(url):
             + r"|thmx|mso|arff|rtf|jar|csv"
             + r"|rm|smil|wmv|swf|wma|zip|rar|gz|sql)$", parsed.path):
             return False
-        # pdf without an extension
-        if re.match(r".*/files/pdf/.*", parsed.path):
-            return False
         # calendar link, download, login, sharing to twitter or facebook
         if re.match(r".*(ical=|tribe_events|action=|share=(twitter|facebook)).*", parsed.query):
             return False
-        # calendar events (gray area: wics.*event/.*, some have text, most are useless)
-        if re.match(r".*/events/(category|.*(day|20\d{2}-\d{2})).*", parsed.path):
-            return False
-        if re.match(r".*wics\.ics\.uci\.edu/events?/.*", url):
-            return False
-        # redirects
-        if re.match(r".*ics\.uci\.edu/~.*", url):
+        if 'calendar' in url:
             return False
         # file uploads and login form
         if re.match(r".*/wp-(content|login).*", parsed.path):
+            return False
+        # I used the regex from https://support.archive-it.org/hc/en-us/articles/208332963-Modify-crawl-scope-with-a-Regular-Expression which blocks URLS with repeated paths, but I modified it for my own needs to include repeated numbers in paths
+        # Repeated paths (excluding the specified URL which has content and is not a crawler trap)
+        if re.match(r"^.*?(/[a-zA-Z]+?/).*?\1.*$|^.*?/([a-zA-Z]+?/)\2.*$", url) and 'grape.ics.uci.edu/wiki/public/wiki' not in url:
             return False
         if not re.match(
             r".*(ics|cs|informatics|stat|today)\.uci\.edu",
             parsed.hostname,
         ):
             return False
-
-        if "today.uci.edu" in parsed.hostname and not parsed.path.startswith(
-            "/department/information_computer_sciences"
-        ):
+        if "today.uci.edu" in parsed.hostname and "department/information_computer_sciences" not in parsed.path:
             return False
+
         return True
 
     except Exception as e:

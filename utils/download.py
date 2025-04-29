@@ -11,7 +11,9 @@ def download(url, config, logger=None):
         params=[("q", f"{url}"), ("u", f"{config.user_agent}")])
     try:
         if resp and resp.content:
-            return Response(cbor.loads(resp.content))
+            data = cbor.loads(resp.content)
+            data['headers'] = resp.headers
+            return Response(data)
     except (EOFError, ValueError) as e:
         pass
     logger.error(f"Spacetime Response error {resp} with url {url}.")
