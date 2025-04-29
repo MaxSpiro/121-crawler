@@ -1,7 +1,7 @@
 from pathlib import Path
 from urllib.parse import urlparse
 import nltk
-import os
+import re
 from scraper import is_valid
 # 1) Number of unique pages
 # 2) Longest page (# of words)
@@ -31,7 +31,7 @@ def tokenizeWebpages():
     for file in Path('./webpages').iterdir():  
         with open(file) as f:
             url = f.readline().rstrip('\n')
-            tokens = nltk.word_tokenize(' '.join(f.readlines()))
+            tokens = nltk.word_tokenize(re.sub(r"[^a-z\s]",'',' '.join(f.readlines()).lower()))
             with open('tokens/'+file.name, 'w') as wf:
                 wf.write(url+'\n'+' '.join(tokens))
 

@@ -38,7 +38,7 @@ def extract_next_links(url: str, resp):
 
 
     # Process HTML
-    text = soup.get_text()
+    text = soup.get_text(separator=" ",strip=True)
     clean_text = re.sub(r'\n+','\n',text)
     if len(clean_text) < 5:
         info_logger.info('URL: '+url+' returned low information')
