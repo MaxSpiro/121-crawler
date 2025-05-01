@@ -4,8 +4,10 @@ from bs4 import BeautifulSoup
 from utils import get_urlhash, get_logger
 import nltk
 from stopwords import stopwords
+from persistent_index import PersistentSimhashIndex
 
 error_logger = get_logger('errors')
+index = PersistentSimhashIndex()
 
 def scraper(url, resp):
     links = extract_next_links(url, resp)
@@ -36,26 +38,53 @@ def extract_next_links(url: str, resp):
 
     # Process HTML
     soup = BeautifulSoup(content, 'html.parser')
-    text = soup.get_text(separator=" ",strip=True)
-    clean_text = re.sub(r"[^a-z\s]",'', text)
-    filename = get_urlhash(url)
-    tokens = [token for token in nltk.word_tokenize(clean_text) if token not in stopwords and len(token) > 2]
-    
     
     links = list()
     for link in soup.find_all('a'):
         if link.get('href'):
             links.append(urldefrag(link.get('href')).url)
+
+    text = soup.get_text(separator=" ",strip=True)
+    filename = get_urlhash(url)
+    tokens = tokenize(clean_text(text))
     
     if len(tokens) < 10:
         error_logger.info('URL: '+url+' returned low information')
         return links
+    
+    try:
+        similar_docs = getSimilarDocs(url, soup)
+        if len(similar_docs) > 0:
+            similar_docs_string = ', '.join(similar_docs)
+            error_logger.error(f'Site {url} is similar to {similar_docs_string}')
+            return links
+    except:
+        pass
 
     with open("tokens/"+filename, 'w') as f:
         f.write(url+"\n"+' '.join(tokens))
         
     return links
 
+def tokenize(text):
+    return [token for token in nltk.word_tokenize(text) if token not in stopwords and len(token) > 2]
+
+def clean_text(text):
+    return re.sub(r"[^a-z\s]",'', text.lower())
+
+def getSimilarDocs(url, soup: BeautifulSoup):
+    tokens = []
+    if soup.title:
+        for word in tokenize(clean_text(soup.title.getText())):
+            tokens.append((word, 3))
+    for h in soup.find_all(['h1','h2','h3']):
+        for word in tokenize(clean_text(h.get_text())):
+            tokens.append((word, 2))
+    for word in tokenize(clean_text(soup.get_text(separator=" ",strip=True))):
+        tokens.append((word, 1))
+    similarDocs = index.get_matches(tokens)
+    index.add_doc(url, tokens)
+    return similarDocs
 
 def is_valid(url):
     # Decide whether to crawl this url or not.

@@ -1,22 +1,10 @@
 from pathlib import Path
 from urllib.parse import urlparse
-
+from simhash import Simhash, SimhashIndex
 # 1) Number of unique pages
 # 2) Longest page (# of words)
 # 3) 50 most common words (ignoring stop words)
 # 4) Number of subdomains in uci.edu, listed alphabetically and with number of pages in the subdomain
-
-def computeWordFrequencies(tokens):
-    freqs = dict()
-    for i in range(len(tokens)):
-        if tokens[i] in freqs:
-            continue
-        freqs[tokens[i]] = 1
-        for j in range(i + 1, len(tokens)):
-            if tokens[j] == tokens[i]:
-                freqs[tokens[i]] += 1
-    return freqs
-
 def iteratePages():
     max_words = 0
     n_pages = 0
