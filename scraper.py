@@ -2,9 +2,10 @@ import re
 from urllib.parse import urlparse, urldefrag
 from bs4 import BeautifulSoup
 from utils import get_urlhash, get_logger
+import nltk
+from stopwords import stopwords
 
 error_logger = get_logger('errors')
-info_logger = get_logger('low_info')
 
 def scraper(url, resp):
     links = extract_next_links(url, resp)
@@ -28,27 +29,30 @@ def extract_next_links(url: str, resp):
         return list()
     
     # Only accept HTML
-    if resp.headers and 'text/html' not in resp.headers['Content-Type']:
-        info_logger.log('URL '+url+' is not HTML')
+    content = resp.raw_response.content.lower()
+    if (resp.headers and 'text/html' not in resp.headers['Content-Type']) or (b'<html' not in content and b'<!doctype html' not in content):
+        error_logger.info(f'URL {url} is not HTML')
         return list()
+
+    # Process HTML
+    soup = BeautifulSoup(content, 'html.parser')
+    text = soup.get_text(separator=" ",strip=True)
+    clean_text = re.sub(r"[^a-z\s]",'', text)
+    filename = get_urlhash(url)
+    tokens = [token for token in nltk.word_tokenize(clean_text) if token not in stopwords and len(token) > 2]
+    
     
     links = list()
-    soup = BeautifulSoup(resp.raw_response.content, 'html.parser')
     for link in soup.find_all('a'):
         if link.get('href'):
             links.append(urldefrag(link.get('href')).url)
+    
+    if len(tokens) < 10:
+        error_logger.info('URL: '+url+' returned low information')
+        return links
 
-
-    # Process HTML
-    text = soup.get_text(separator=" ",strip=True)
-    clean_text = re.sub(r'\n+','\n',text)
-    if len(clean_text) < 5:
-        info_logger.info('URL: '+url+' returned low information')
-        if len(clean_text) > 0:
-            info_logger.info('Page contents: '+clean_text)
-    filename = get_urlhash(url)
-    with open("webpages/"+filename, 'w') as f:
-        f.write(url+"\n"+clean_text)
+    with open("tokens/"+filename, 'w') as f:
+        f.write(url+"\n"+' '.join(tokens))
         
     return links
 
@@ -70,12 +74,15 @@ def is_valid(url):
             + r"|data|dat|exe|bz2|tar|msi|bin|7z|psd|dmg|iso"
             + r"|epub|dll|cnf|tgz|sha1"
             + r"|thmx|mso|arff|rtf|jar|csv"
-            + r"|rm|smil|wmv|swf|wma|zip|rar|gz|sql)$", parsed.path):
+            + r"|rm|smil|wmv|swf|wma|zip|rar|gz|sql|txt|ppsx)$", parsed.path):
             return False
         # calendar link, download, login, sharing to twitter or facebook
-        if re.match(r".*(ical=|tribe_events|action=|share=(twitter|facebook)).*", parsed.query):
+        if re.match(r".*(ical=|tribe_events?|tribe-bar-date|action=|share=(twitter|facebook)).*", parsed.query):
             return False
         if 'calendar' in url:
+            return False
+        # filter dates for calendars
+        if re.match(r"/(events|day|month).*/\d{4}-\d{2}(-\d{2})?.*", parsed.path):
             return False
         # file uploads and login form
         if re.match(r".*/wp-(content|login).*", parsed.path):
