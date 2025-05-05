@@ -110,3 +110,4 @@ venv.bak/
 *.shelve
 webpages/
 tokens/
+simhash_index.json

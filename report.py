@@ -1,6 +1,5 @@
 from pathlib import Path
 from urllib.parse import urlparse
-from simhash import Simhash, SimhashIndex
 # 1) Number of unique pages
 # 2) Longest page (# of words)
 # 3) 50 most common words (ignoring stop words)

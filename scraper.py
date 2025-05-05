@@ -1,5 +1,5 @@
 import re
-from urllib.parse import urlparse, urldefrag
+from urllib.parse import urlparse, urldefrag, urljoin
 from bs4 import BeautifulSoup
 from utils import get_urlhash, get_logger
 import nltk
@@ -24,47 +24,52 @@ def extract_next_links(url: str, resp):
     #         resp.raw_response.url: the url, again
     #         resp.raw_response.content: the content of the page!
     # Return a list with the hyperlinks (as strings) scraped from resp.raw_response.content
-    if resp.status != 200:
-        error_logger.error('URL: '+url+' returned status code ' + str(resp.status))
-        if resp.error:
-            error_logger.error('Error: '+resp.error)
-        return list()
-    
-    # Only accept HTML
-    content = resp.raw_response.content.lower()
-    if (resp.headers and 'text/html' not in resp.headers['Content-Type']) or (b'<html' not in content and b'<!doctype html' not in content):
-        error_logger.info(f'URL {url} is not HTML')
-        return list()
-
-    # Process HTML
-    soup = BeautifulSoup(content, 'html.parser')
-    
-    links = list()
-    for link in soup.find_all('a'):
-        if link.get('href'):
-            links.append(urldefrag(link.get('href')).url)
-
-    text = soup.get_text(separator=" ",strip=True)
-    filename = get_urlhash(url)
-    tokens = tokenize(clean_text(text))
-    
-    if len(tokens) < 10:
-        error_logger.info('URL: '+url+' returned low information')
-        return links
-    
     try:
-        similar_docs = getSimilarDocs(url, soup)
-        if len(similar_docs) > 0:
-            similar_docs_string = ', '.join(similar_docs)
-            error_logger.error(f'Site {url} is similar to {similar_docs_string}')
-            return links
-    except:
-        pass
-
-    with open("tokens/"+filename, 'w') as f:
-        f.write(url+"\n"+' '.join(tokens))
+        if resp.status != 200:
+            error_logger.error('URL: '+url+' returned status code ' + str(resp.status))
+            if resp.error:
+                error_logger.error('Error: '+resp.error)
+            return list()
         
-    return links
+        # Only accept HTML
+        content = resp.raw_response.content.lower()
+        if (resp.headers and 'text/html' not in resp.headers['Content-Type']) or (b'<html' not in content and b'<!doctype html' not in content):
+            error_logger.info(f'URL {url} is not HTML')
+            return list()
+
+        # Process HTML
+        soup = BeautifulSoup(content, 'html.parser')
+        
+        links = list()
+        for link in soup.find_all('a'):
+            if link.get('href'):
+                href = link.get('href')
+                new_url = urljoin(url,href)
+                links.append(urldefrag(new_url).url)
+
+        text = soup.get_text(separator=" ",strip=True)
+        filename = get_urlhash(url)
+        tokens = tokenize(clean_text(text))
+        
+        if len(tokens) < 10:
+            error_logger.info('URL: '+url+' returned low information')
+            return links
+        
+        try:
+            similar_docs = getSimilarDocs(url, soup)
+            if len(similar_docs) > 0:
+                similar_docs_string = ', '.join(similar_docs)
+                error_logger.error(f'Site {url} is similar to {similar_docs_string}')
+                return links
+        except:
+            pass
+
+        with open("tokens/"+filename, 'w') as f:
+            f.write(url+"\n"+' '.join(tokens))
+            
+        return links
+    except:
+        return list()
 
 def tokenize(text):
     return [token for token in nltk.word_tokenize(text) if token not in stopwords and len(token) > 2]
