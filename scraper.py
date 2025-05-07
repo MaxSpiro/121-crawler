@@ -108,7 +108,7 @@ def is_valid(url):
             + r"|data|dat|exe|bz2|tar|msi|bin|7z|psd|dmg|iso"
             + r"|epub|dll|cnf|tgz|sha1"
             + r"|thmx|mso|arff|rtf|jar|csv"
-            + r"|rm|smil|wmv|swf|wma|zip|rar|gz|sql|txt|ppsx)$", parsed.path):
+            + r"|rm|smil|wmv|swf|wma|zip|rar|gz|sql|txt|ppsx|img)$", parsed.path):
             return False
         # calendar link, download, login, sharing to twitter or facebook
         if re.match(r".*(ical=|tribe_events?|tribe-bar-date|action=|share=(twitter|facebook)).*", parsed.query):
