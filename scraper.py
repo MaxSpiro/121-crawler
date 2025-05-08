@@ -36,17 +36,24 @@ def extract_next_links(url: str, resp):
         if (resp.headers and 'text/html' not in resp.headers['Content-Type']) or (b'<html' not in content and b'<!doctype html' not in content):
             error_logger.info(f'URL {url} is not HTML')
             return list()
-
+        
         # Process HTML
         soup = BeautifulSoup(content, 'html.parser')
         
+        robots_tag = soup.find("meta",attrs={'name':'robots'})
+        robots = robots_tag.get("content","").lower() if robots_tag else ""
         links = list()
-        for link in soup.find_all('a'):
-            if link.get('href'):
-                href = link.get('href')
-                new_url = urljoin(url,href)
-                links.append(urldefrag(new_url).url)
-
+        if 'nofollow' not in robots:
+            for link in soup.find_all('a'):
+                if link and link.get('href'):
+                    href = link.get('href',"").strip()
+                    if 'mailto:' in href or href.startswith('#'):
+                        continue
+                    new_url = urljoin(resp.raw_response.url, href)
+                    links.append(urldefrag(new_url).url)
+        if 'noindex' in robots:
+            return links
+        
         text = soup.get_text(separator=" ",strip=True)
         filename = get_urlhash(url)
         tokens = tokenize(clean_text(text))
@@ -66,9 +73,13 @@ def extract_next_links(url: str, resp):
 
         with open("tokens/"+filename, 'w') as f:
             f.write(url+"\n"+' '.join(tokens))
+        
+        with open("webpages/"+filename,'w') as f:
+            f.write(url+"\n"+str(content))
             
         return links
-    except:
+    except Exception as e:
+        error_logger.error(repr(e))
         return list()
 
 def tokenize(text):
@@ -111,7 +122,7 @@ def is_valid(url):
             + r"|rm|smil|wmv|swf|wma|zip|rar|gz|sql|txt|ppsx|img)$", parsed.path):
             return False
         # calendar link, download, login, sharing to twitter or facebook
-        if re.match(r".*(ical=|tribe_events?|tribe-bar-date|action=|share=(twitter|facebook)).*", parsed.query):
+        if re.match(r".*(ical|tribe_events?|tribe-bar-date|action=|share=(twitter|facebook)|do=).*", parsed.query):
             return False
         if 'calendar' in url:
             return False
