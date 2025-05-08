@@ -132,6 +132,8 @@ def is_valid(url):
         # file uploads and login form
         if re.match(r".*/wp-(content|login).*", parsed.path):
             return False
+        if 'gitlab' in parsed.hostname and 'commit' in parsed.path:
+            return False
         # I used the regex from https://support.archive-it.org/hc/en-us/articles/208332963-Modify-crawl-scope-with-a-Regular-Expression which blocks URLS with repeated paths, but I modified it for my own needs to include repeated numbers in paths
         # Repeated paths (excluding the specified URL which has content and is not a crawler trap)
         if re.match(r"^.*?(/[a-zA-Z]+?/).*?\1.*$|^.*?/([a-zA-Z]+?/)\2.*$", url) and 'grape.ics.uci.edu/wiki/public/wiki' not in url:
