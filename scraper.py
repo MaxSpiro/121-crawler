@@ -119,10 +119,13 @@ def is_valid(url):
             + r"|data|dat|exe|bz2|tar|msi|bin|7z|psd|dmg|iso"
             + r"|epub|dll|cnf|tgz|sha1"
             + r"|thmx|mso|arff|rtf|jar|csv"
-            + r"|rm|smil|wmv|swf|wma|zip|rar|gz|sql|txt|ppsx|img)$", parsed.path):
+            + r"|rm|smil|wmv|swf|wma|zip|rar|gz|sql|txt|ppsx|img|ff)$", parsed.path):
             return False
         # calendar link, download, login, sharing to twitter or facebook
         if re.match(r".*(ical|tribe_events?|tribe-bar-date|action=|share=(twitter|facebook)|do=).*", parsed.query):
+            return False
+        # french page
+        if '.fr' in parsed.path:
             return False
         if 'calendar' in url:
             return False
@@ -132,7 +135,7 @@ def is_valid(url):
         # file uploads and login form
         if re.match(r".*/wp-(content|login).*", parsed.path):
             return False
-        if 'gitlab' in parsed.hostname and 'commit' in parsed.path:
+        if 'gitlab' in parsed.hostname and ('commit' in parsed.path or 'tag' in parsed.path):
             return False
         # I used the regex from https://support.archive-it.org/hc/en-us/articles/208332963-Modify-crawl-scope-with-a-Regular-Expression which blocks URLS with repeated paths, but I modified it for my own needs to include repeated numbers in paths
         # Repeated paths (excluding the specified URL which has content and is not a crawler trap)
